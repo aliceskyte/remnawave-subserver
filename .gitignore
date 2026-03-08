@@ -1,0 +1,53 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Database
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+request_dump.log
+
+# Archives
+*.zip
+*.tar.gz
+
+# Binaries
+subserver
+/out/
+*.test
+
+# Data directory (runtime)
+data/
+tmp/
+.cache/
+coverage.out
+*.coverprofile
+mihomo.yaml
+
+# Backup (old code)
+backup/
+remnawave-subpage/
+
+# Local configs and generated artifacts
+configs/*.local.json
+examples/*.local.*
+FreezeGrowth/target/
+Xray-docs-next-main/node_modules/
+Meta-Docs-main/site/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

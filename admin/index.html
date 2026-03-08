@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0e14" />
+    <title>Subserver Admin</title>
+    <link rel="stylesheet" href="./styles.css?v=20260308d" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Unbounded:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="animated-background"></div>
+
+    <header class="header-wrapper">
+      <div class="header-inner">
+        <div class="brand">
+          <div class="logo-mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <h1 class="brand-title">
+            <span class="logo-text-highlight">Sub</span><span class="logo-text-normal">server</span>
+          </h1>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+
+      <section class="panel login-panel" id="login-panel">
+        <div class="login-card">
+          <div class="login-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h2>Авторизация</h2>
+          <p class="login-subtitle">Введите локальный ADMIN_TOKEN для доступа к управлению.</p>
+          <div class="login-form">
+            <div class="input-group">
+              <div class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                </svg>
+              </div>
+              <input id="token" type="password" placeholder="Вставьте ADMIN_TOKEN" autocomplete="off" />
+            </div>
+            <button class="btn primary btn-lg" id="token-check">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                <polyline points="10 17 15 12 10 7"/>
+                <line x1="15" y1="12" x2="3" y2="12"/>
+              </svg>
+              Войти
+            </button>
+          </div>
+          <div class="login-hint" id="login-status">Ожидание токена…</div>
+        </div>
+      </section>
+
+      <section class="content hidden" id="admin-content">
+
+        <!-- Squad selector bar -->
+        <div class="squad-bar">
+          <div class="squad-bar-inner">
+            <div class="squad-label">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/>
+                <path d="M12 3v18"/>
+                <path d="M4 7.5l8 4.5 8-4.5"/>
+              </svg>
+              <span>Core</span>
+            </div>
+            <div class="squad-switcher" id="core-switcher">
+              <button
+                class="squad-switcher-trigger"
+                id="core-switcher-trigger"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                aria-controls="core-options"
+              >
+                <div class="squad-switcher-copy">
+                  <span class="squad-switcher-eyebrow">Активный core</span>
+                  <span class="squad-switcher-value" id="core-switcher-value">Xray</span>
+                </div>
+                <span class="squad-switcher-caret" aria-hidden="true">▾</span>
+              </button>
+              <div class="squad-switcher-menu" id="core-switcher-menu">
+                <div class="squad-switcher-menu-inner">
+                  <div class="squad-switcher-menu-head">
+                    <span class="sidebar-label">Core</span>
+                    <span class="squad-switcher-menu-hint">Отделяет пространства конфигов и хедеров</span>
+                  </div>
+                  <div class="squad-options" id="core-options" role="listbox" aria-label="Список core"></div>
+                </div>
+              </div>
+              <select id="core-select" class="hidden-native-select" tabindex="-1" aria-hidden="true"></select>
+            </div>
+            <div class="squad-label">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              <span>Сквад</span>
+            </div>
+            <div class="squad-switcher" id="squad-switcher">
+              <button
+                class="squad-switcher-trigger"
+                id="squad-switcher-trigger"
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                aria-controls="squad-options"
+              >
+                <div class="squad-switcher-copy">
+                  <span class="squad-switcher-eyebrow">Активный сквад</span>
+                  <span class="squad-switcher-value" id="squad-switcher-value">Неизвестный</span>
+                </div>
+                <span class="squad-switcher-caret" aria-hidden="true">▾</span>
+              </button>
+              <div class="squad-switcher-menu" id="squad-switcher-menu">
+                <div class="squad-switcher-menu-inner">
+                  <div class="squad-switcher-menu-head">
+                    <span class="sidebar-label">Сквады</span>
+                    <span class="squad-switcher-menu-hint">Список приходит из Remnawave</span>
+                  </div>
+                  <div class="squad-options" id="squad-options" role="listbox" aria-label="Список сквадов"></div>
+                </div>
+              </div>
+              <select id="squad-select" class="hidden-native-select" tabindex="-1" aria-hidden="true"></select>
+            </div>
+          </div>
+          <p class="squad-hint" id="squad-hint">
+            Core и сквад вместе определяют активное пространство шаблонов и переопределений. Для неизвестных пользователей используется «Неизвестный».
+          </p>
+        </div>
+
+        <div class="grid">
+          <!-- Configs panel -->
+          <section class="panel">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <div class="panel-icon config-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <polyline points="10 9 9 9 8 9"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 id="config-panel-title">Конфиги Xray</h2>
+                  <p class="panel-subtitle" id="config-panel-subtitle">Управление JSON-конфигурациями серверов</p>
+                </div>
+              </div>
+              <div class="panel-actions">
+                <button class="btn btn-icon" id="config-new" title="Новый конфиг">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  <span>Новый</span>
+                </button>
+                <button class="btn btn-icon" id="config-format" title="Форматировать JSON">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="16 18 22 12 16 6"/>
+                    <polyline points="8 6 2 12 8 18"/>
+                  </svg>
+                  <span>Формат</span>
+                </button>
+                <button class="btn primary btn-icon" id="config-save" title="Сохранить">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                  </svg>
+                  <span>Сохранить</span>
+                </button>
+                <button class="btn danger btn-icon" id="config-delete" title="Удалить">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                  <span>Удалить</span>
+                </button>
+              </div>
+            </div>
+            <div class="config-layout">
+              <div class="config-sidebar">
+                <div class="config-sidebar-head">
+                  <span class="sidebar-label">Серверы</span>
+                  <span class="sidebar-count" id="config-count">0</span>
+                </div>
+                <div class="config-list" id="config-list" role="listbox" aria-label="Список конфигов"></div>
+              </div>
+              <div class="config-editor">
+                <div class="config-name-row">
+                  <div class="config-name-chip" id="config-name-chip">
+                    <div class="config-name-chip-copy">
+                      <span class="config-name-chip-label">Название</span>
+                      <span class="config-name-chip-value" id="config-name-display">Новый конфиг</span>
+                    </div>
+                    <button
+                      class="config-rename-btn"
+                      id="config-rename"
+                      type="button"
+                      title="Переименовать конфиг"
+                      aria-label="Переименовать конфиг"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"/>
+                        <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="config-name-editor hidden" id="config-name-editor">
+                    <div class="input-group">
+                      <div class="input-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M12 20h9"/>
+                          <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+                        </svg>
+                      </div>
+                      <input id="config-name" type="text" placeholder="Например: 🇩🇪 Германия" />
+                    </div>
+                    <div class="config-name-editor-actions">
+                      <button class="btn primary btn-icon" id="config-rename-apply" type="button" title="Применить">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      </button>
+                      <button class="btn btn-icon" id="config-rename-cancel" type="button" title="Отменить">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/>
+                          <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <label class="field">
+                  <span id="config-field-label">JSON-конфиг</span>
+                  <div class="textarea-wrap">
+                    <textarea id="config-json" rows="18" placeholder='{ "outbounds": [ ... ] }' spellcheck="false"></textarea>
+                    <button class="textarea-expand-btn" id="config-expand" type="button" title="Развернуть редактор">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 3 21 3 21 9"/>
+                        <polyline points="9 21 3 21 3 15"/>
+                        <line x1="21" y1="3" x2="14" y2="10"/>
+                        <line x1="3" y1="21" x2="10" y2="14"/>
+                      </svg>
+                    </button>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <!-- Headers panel -->
+          <section class="panel">
+            <div class="panel-head">
+              <div class="panel-title-group">
+                <div class="panel-icon header-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                    <line x1="4" y1="22" x2="4" y2="15"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 id="header-panel-title">Хедеры Xray</h2>
+                  <p class="panel-subtitle" id="header-panel-subtitle">Переопределение HTTP-заголовков подписки Xray</p>
+                </div>
+              </div>
+              <div class="panel-actions">
+                <button class="btn btn-icon" id="header-add" title="Добавить хедер">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  <span>Добавить</span>
+                </button>
+                <button class="btn primary btn-icon" id="header-save" title="Сохранить">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                  </svg>
+                  <span>Сохранить</span>
+                </button>
+              </div>
+            </div>
+            <div class="fetch-row">
+              <div class="input-group fetch-input">
+                <div class="input-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                </div>
+                <input id="header-uuid" type="text" placeholder="Short UUID для Fetch" />
+              </div>
+              <button class="btn btn-icon" id="header-fetch" title="Загрузить хедеры">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="1 4 1 10 7 10"/>
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+                <span>Fetch</span>
+              </button>
+            </div>
+            <p class="hint">
+              Fetch подтянет актуальные хедеры из Remnawave. Можно переключать «Актуальные» / «Кастом» для каждого заголовка.
+            </p>
+            <div class="header-list" id="header-list"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <!-- Fullscreen JSON editor modal -->
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal-container" id="modal-container">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <div class="panel-icon config-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <div>
+              <h2>Редактор конфига</h2>
+              <p class="panel-subtitle" id="modal-subtitle">Полноэкранный режим</p>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-icon" id="modal-format" title="Форматировать JSON">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 18 22 12 16 6"/>
+                <polyline points="8 6 2 12 8 18"/>
+              </svg>
+              <span>Формат</span>
+            </button>
+            <button class="btn primary btn-icon" id="modal-save" title="Сохранить">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span>Сохранить</span>
+            </button>
+            <button class="btn danger btn-icon" id="modal-delete" title="Удалить">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              <span>Удалить</span>
+            </button>
+            <div class="modal-divider"></div>
+            <button class="btn btn-icon" id="modal-close" title="Закрыть (Esc)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              <span>Закрыть</span>
+            </button>
+          </div>
+        </div>
+        <div class="modal-name-row">
+          <label class="field">
+            <span>Название сервера</span>
+            <div class="input-group">
+              <div class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+              </div>
+              <input id="modal-config-name" type="text" placeholder="Например: 🇩🇪 Германия" />
+            </div>
+          </label>
+        </div>
+        <div class="modal-editor-wrapper">
+          <div class="editor-toolbar">
+            <span class="editor-lang-badge" id="editor-lang-badge">JSON</span>
+            <span class="editor-status" id="editor-status">Готово</span>
+          </div>
+          <div class="code-editor" id="code-editor">
+            <div class="line-numbers" id="line-numbers"></div>
+            <div class="code-highlight" id="code-highlight" aria-hidden="true"></div>
+            <textarea class="code-input" id="modal-config-json" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" wrap="off" placeholder='{ "outbounds": [ ... ] }'></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+
+    <script src="./app.js?v=20260308d"></script>
+  </body>
+</html>
