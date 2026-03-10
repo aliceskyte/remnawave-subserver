@@ -1,0 +1,406 @@
+{
+  "remarks": "Пример randomize | {username}",
+  "subserver": {
+    "randomize": {
+      "primary": ["primary_a", "primary_b"]
+    }
+  },
+  "burstObservatory": {
+    "pingConfig": {
+      "connectivity": "",
+      "destination": "https://www.google.com/generate_204",
+      "httpMethod": "HEAD",
+      "interval": "30s",
+      "sampling": 1,
+      "timeout": "5s"
+    },
+    "subjectSelector": ["primary", "secondary", "direct", "relay", "gateway"]
+  },
+  "dns": {
+    "queryStrategy": "UseIP",
+    "servers": ["1.1.1.1", "1.0.0.1"]
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 10808,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true
+      },
+      "sniffing": {
+        "destOverride": ["http", "tls", "quic"],
+        "enabled": true,
+        "routeOnly": false
+      },
+      "tag": "socks"
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10809,
+      "protocol": "http",
+      "settings": {
+        "allowTransparent": false
+      },
+      "sniffing": {
+        "destOverride": ["http", "tls", "quic"],
+        "enabled": true,
+        "routeOnly": false
+      },
+      "tag": "http"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "primary-a.example.com",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "flow": "xtls-rprx-vision",
+                "id": "00000000-0000-0000-0000-000000000000"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "fingerprint": "firefox",
+          "publicKey": "PUBLIC_KEY_PLACEHOLDER",
+          "serverName": "primary-a.example.com",
+          "shortId": "db04ce8bdb8900f1",
+          "show": false
+        },
+        "security": "reality",
+        "tcpSettings": {}
+      },
+      "tag": "primary_a"
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "primary-b.example.com",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "flow": "xtls-rprx-vision",
+                "id": "00000000-0000-0000-0000-000000000000"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "fingerprint": "firefox",
+          "publicKey": "PUBLIC_KEY_PLACEHOLDER",
+          "serverName": "primary-b.example.com",
+          "shortId": "db04ce8bdb8900f1",
+          "show": false
+        },
+        "security": "reality",
+        "tcpSettings": {}
+      },
+      "tag": "primary_b"
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "primary-relay.example.com",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "flow": "xtls-rprx-vision",
+                "id": "00000000-0000-0000-0000-000000000000"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "fingerprint": "firefox",
+          "publicKey": "PUBLIC_KEY_PLACEHOLDER",
+          "serverName": "primary-relay.example.com",
+          "shortId": "db04ce8bdb8900f1",
+          "show": false
+        },
+        "security": "reality",
+        "sockopt": {
+          "dialerProxy": "gateway"
+        },
+        "tcpSettings": {}
+      },
+      "tag": "primary_via_gateway"
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "primary-fallback.example.com",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "flow": "xtls-rprx-vision",
+                "id": "00000000-0000-0000-0000-000000000000"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "fingerprint": "firefox",
+          "publicKey": "PUBLIC_KEY_PLACEHOLDER",
+          "serverName": "primary-fallback.example.com",
+          "shortId": "db04ce8bdb8900f1",
+          "show": false
+        },
+        "security": "reality",
+        "sockopt": {
+          "dialerProxy": "relay"
+        },
+        "tcpSettings": {}
+      },
+      "tag": "primary_fallback"
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "secondary.example.com",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "flow": "xtls-rprx-vision",
+                "id": "00000000-0000-0000-0000-000000000000"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "fingerprint": "firefox",
+          "publicKey": "PUBLIC_KEY_PLACEHOLDER",
+          "serverName": "secondary.example.com",
+          "shortId": "db04ce8bdb8900f1",
+          "show": false
+        },
+        "security": "reality",
+        "tcpSettings": {}
+      },
+      "tag": "secondary"
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "secondary-relay.example.com",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "flow": "xtls-rprx-vision",
+                "id": "00000000-0000-0000-0000-000000000000"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "fingerprint": "firefox",
+          "publicKey": "PUBLIC_KEY_PLACEHOLDER",
+          "serverName": "secondary-relay.example.com",
+          "shortId": "db04ce8bdb8900f1",
+          "show": false
+        },
+        "security": "reality",
+        "sockopt": {
+          "dialerProxy": "gateway"
+        },
+        "tcpSettings": {}
+      },
+      "tag": "secondary_via_gateway"
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "secondary-fallback.example.com",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "flow": "xtls-rprx-vision",
+                "id": "00000000-0000-0000-0000-000000000000"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "fingerprint": "firefox",
+          "publicKey": "PUBLIC_KEY_PLACEHOLDER",
+          "serverName": "secondary-fallback.example.com",
+          "shortId": "db04ce8bdb8900f1",
+          "show": false
+        },
+        "security": "reality",
+        "sockopt": {
+          "dialerProxy": "relay"
+        },
+        "tcpSettings": {}
+      },
+      "tag": "secondary_fallback"
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "gateway.example.com",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "flow": "xtls-rprx-vision",
+                "id": "11111111-1111-1111-1111-111111111111",
+                "level": 8,
+                "security": "auto"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "allowInsecure": false,
+          "fingerprint": "",
+          "publicKey": "PUBLIC_KEY_PLACEHOLDER",
+          "serverName": "google.com",
+          "shortId": "8306088529218116",
+          "show": false,
+          "spiderX": "/"
+        },
+        "security": "reality",
+        "tcpSettings": {
+          "header": {
+            "type": "none"
+          }
+        }
+      },
+      "tag": "gateway"
+    },
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "relay.example.com",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "flow": "xtls-rprx-vision",
+                "id": "22222222-2222-2222-2222-222222222222"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "realitySettings": {
+          "publicKey": "PUBLIC_KEY_PLACEHOLDER",
+          "serverName": "max.ru",
+          "shortId": "8306088529218116",
+          "show": false
+        },
+        "security": "reality",
+        "tcpSettings": {}
+      },
+      "tag": "relay"
+    },
+    {
+      "protocol": "freedom",
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "block"
+    }
+  ],
+  "routing": {
+    "balancers": [
+      {
+        "fallbackTag": "primary_fallback",
+        "selector": ["primary", "primary_via_gateway"],
+        "strategy": {
+          "type": "leastPing"
+        },
+        "tag": "PROXY-BAL"
+      },
+      {
+        "fallbackTag": "secondary_fallback",
+        "selector": ["secondary", "secondary_via_gateway"],
+        "strategy": {
+          "type": "leastPing"
+        },
+        "tag": "RU-BAL"
+      }
+    ],
+    "domainMatcher": "hybrid",
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "balancerTag": "RU-BAL",
+        "domain": ["geosite:youtube", "geosite:discord", "geosite:soundcloud"],
+        "type": "field"
+      },
+      {
+        "ip": ["192.168.0.0/16"],
+        "outboundTag": "direct",
+        "type": "field"
+      },
+      {
+        "outboundTag": "direct",
+        "protocol": ["bittorrent"],
+        "type": "field"
+      },
+      {
+        "balancerTag": "PROXY-BAL",
+        "inboundTag": ["socks", "http"],
+        "type": "field"
+      }
+    ]
+  }
+}
