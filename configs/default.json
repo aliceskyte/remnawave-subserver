@@ -52,7 +52,13 @@
       "subserver": {
         "skipOutboundTags": [
           "static-node"
-        ]
+        ],
+        "randomize": {
+          "proxy": [
+            "proxy_de",
+            "proxy_nl"
+          ]
+        }
       },
       "outbounds": [
         {
@@ -83,7 +89,37 @@
             },
             "tcpSettings": {}
           },
-          "tag": "proxy"
+          "tag": "proxy_de"
+        },
+        {
+          "protocol": "vless",
+          "settings": {
+            "vnext": [
+              {
+                "address": "edge-1-nl.example.invalid",
+                "port": 443,
+                "users": [
+                  {
+                    "encryption": "none",
+                    "flow": "xtls-rprx-vision",
+                    "id": "22222222-2222-2222-2222-222222222222"
+                  }
+                ]
+              }
+            ]
+          },
+          "streamSettings": {
+            "network": "tcp",
+            "security": "reality",
+            "realitySettings": {
+              "publicKey": "REPLACE_WITH_NL_PUBLIC_KEY",
+              "serverName": "nl.example.com",
+              "shortId": "2222222222222222",
+              "show": false
+            },
+            "tcpSettings": {}
+          },
+          "tag": "proxy_nl"
         },
         {
           "protocol": "vless",
@@ -128,6 +164,13 @@
         "domainMatcher": "hybrid",
         "domainStrategy": "IPIfNonMatch",
         "rules": [
+          {
+            "domain": [
+              "geosite:google"
+            ],
+            "outboundTag": "proxy",
+            "type": "field"
+          },
           {
             "domain": [
               "geosite:category-ru"

@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -22,6 +23,56 @@ func mustParseTemplate(t *testing.T, template any) any {
 		t.Fatalf("Decode() error = %v", err)
 	}
 	return parsed
+}
+
+func findOutboundByTag(cfg map[string]any, tag string) map[string]any {
+	outbounds, _ := cfg["outbounds"].([]any)
+	for _, item := range outbounds {
+		outbound, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if outbound["tag"] == tag {
+			return outbound
+		}
+	}
+	return nil
+}
+
+func outboundTags(cfg map[string]any) []string {
+	outbounds, _ := cfg["outbounds"].([]any)
+	tags := make([]string, 0, len(outbounds))
+	for _, item := range outbounds {
+		outbound, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		tag, _ := outbound["tag"].(string)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, tag)
+	}
+	return tags
+}
+
+func firstUserID(outbound map[string]any) string {
+	if outbound == nil {
+		return ""
+	}
+	settings, _ := outbound["settings"].(map[string]any)
+	vnext, _ := settings["vnext"].([]any)
+	if len(vnext) == 0 {
+		return ""
+	}
+	serverEntry, _ := vnext[0].(map[string]any)
+	users, _ := serverEntry["users"].([]any)
+	if len(users) == 0 {
+		return ""
+	}
+	userEntry, _ := users[0].(map[string]any)
+	id, _ := userEntry["id"].(string)
+	return id
 }
 
 func TestBuildVLESSUUIDInjection(t *testing.T) {
@@ -219,6 +270,263 @@ func TestBuildInvalidSubserverIgnored(t *testing.T) {
 	user := users[0].(map[string]any)
 	if user["id"] != "new-uuid" {
 		t.Errorf("user id = %v, want new-uuid", user["id"])
+	}
+}
+
+func TestParseBuildDirectivesRandomizeGroups(t *testing.T) {
+	cfg := map[string]any{
+		"subserver": map[string]any{
+			"skipOutboundTags": []any{" static-node ", "static-node", 1},
+			"randomize": map[string]any{
+				"proxy":   []any{"proxy_de", "proxy", "missing", "proxy", " "},
+				"invalid": []any{"proxy_only"},
+			},
+		},
+		"outbounds": []any{
+			map[string]any{"tag": "proxy_de"},
+			map[string]any{"tag": "proxy"},
+			map[string]any{"tag": "proxy_only"},
+			map[string]any{"tag": "static-node"},
+		},
+	}
+
+	directives := parseBuildDirectives(cfg)
+	if len(directives.skipOutboundTags) != 1 {
+		t.Fatalf("expected 1 skip tag, got %d", len(directives.skipOutboundTags))
+	}
+	if _, ok := directives.skipOutboundTags["static-node"]; !ok {
+		t.Fatal("expected static-node to be preserved in skipOutboundTags")
+	}
+
+	expected := map[string][]string{
+		"proxy": {"proxy_de", "proxy"},
+	}
+	if !reflect.DeepEqual(directives.randomizeGroups, expected) {
+		t.Fatalf("randomizeGroups = %#v, want %#v", directives.randomizeGroups, expected)
+	}
+}
+
+func TestParseBuildDirectivesRandomizeConflictsIgnored(t *testing.T) {
+	cfg := map[string]any{
+		"subserver": map[string]any{
+			"randomize": map[string]any{
+				"proxy":  []any{"proxy_de", "proxy_nl"},
+				"media":  []any{"proxy_nl", "proxy_ru"},
+				"broken": []any{"broken", "proxy_ru"},
+				"live":   []any{"proxy_ru", "proxy_no"},
+				"safe":   []any{"proxy_se", "proxy_no"},
+			},
+		},
+		"outbounds": []any{
+			map[string]any{"tag": "proxy_de"},
+			map[string]any{"tag": "proxy_nl"},
+			map[string]any{"tag": "proxy_ru"},
+			map[string]any{"tag": "live"},
+			map[string]any{"tag": "proxy_se"},
+			map[string]any{"tag": "proxy_no"},
+		},
+	}
+
+	directives := parseBuildDirectives(cfg)
+	expected := map[string][]string{
+		"safe": {"proxy_se", "proxy_no"},
+	}
+	if !reflect.DeepEqual(directives.randomizeGroups, expected) {
+		t.Fatalf("randomizeGroups = %#v, want %#v", directives.randomizeGroups, expected)
+	}
+}
+
+func TestBuildRandomizeGroups(t *testing.T) {
+	template := map[string]any{
+		"remarks": "randomized",
+		"subserver": map[string]any{
+			"skipOutboundTags": []any{"media"},
+			"randomize": map[string]any{
+				"proxy": []any{"proxy_de", "proxy"},
+				"media": []any{"media_ru", "media_kz"},
+			},
+		},
+		"outbounds": []any{
+			map[string]any{
+				"tag":      "proxy_de",
+				"protocol": "vless",
+				"settings": map[string]any{
+					"vnext": []any{map[string]any{"users": []any{map[string]any{"id": "old-de"}}}},
+				},
+			},
+			map[string]any{
+				"tag":      "proxy",
+				"protocol": "vless",
+				"settings": map[string]any{
+					"vnext": []any{map[string]any{"users": []any{map[string]any{"id": "old-proxy"}}}},
+				},
+			},
+			map[string]any{
+				"tag":      "media_ru",
+				"protocol": "vless",
+				"settings": map[string]any{
+					"vnext": []any{map[string]any{"users": []any{map[string]any{"id": "old-ru"}}}},
+				},
+			},
+			map[string]any{
+				"tag":      "media_kz",
+				"protocol": "vless",
+				"settings": map[string]any{
+					"vnext": []any{map[string]any{"users": []any{map[string]any{"id": "old-kz"}}}},
+				},
+			},
+			map[string]any{
+				"tag":      "direct",
+				"protocol": "freedom",
+			},
+		},
+		"routing": map[string]any{
+			"rules": []any{
+				map[string]any{"type": "field", "domain": []any{"geosite:google"}, "outboundTag": "proxy"},
+				map[string]any{"type": "field", "domain": []any{"geosite:youtube"}, "outboundTag": "media"},
+				map[string]any{"type": "field", "protocol": []any{"bittorrent"}, "outboundTag": "direct"},
+			},
+		},
+	}
+
+	library := TemplateLibrary{}.WithCore(CoreXray, TemplateSet{Default: mustParseTemplate(t, template), Squads: map[string]any{}})
+	builder := NewBuilder(library)
+
+	result, err := builder.Build(nil, panel.UserInfo{VlessUUID: "new-uuid", Username: "alice"}, CoreXray)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+
+	cfg := result.Content.(map[string]any)
+	if _, exists := cfg["subserver"]; exists {
+		t.Fatal("subserver should be removed from built config")
+	}
+
+	tags := outboundTags(cfg)
+	if len(tags) != 3 {
+		t.Fatalf("expected 3 outbound tags after randomize, got %v", tags)
+	}
+	if !reflect.DeepEqual(tags, []string{"proxy", "media", "direct"}) {
+		t.Fatalf("outbound tags = %v, want [proxy media direct]", tags)
+	}
+
+	proxyOutbound := findOutboundByTag(cfg, "proxy")
+	if proxyOutbound == nil {
+		t.Fatal("expected selected proxy outbound to be renamed to proxy")
+	}
+	mediaOutbound := findOutboundByTag(cfg, "media")
+	if mediaOutbound == nil {
+		t.Fatal("expected selected media outbound to be renamed to media")
+	}
+
+	rules := cfg["routing"].(map[string]any)["rules"].([]any)
+	if got := rules[0].(map[string]any)["outboundTag"]; got != "proxy" {
+		t.Fatalf("first rule outboundTag = %v, want proxy", got)
+	}
+	if got := rules[1].(map[string]any)["outboundTag"]; got != "media" {
+		t.Fatalf("second rule outboundTag = %v, want media", got)
+	}
+	if got := rules[2].(map[string]any)["outboundTag"]; got != "direct" {
+		t.Fatalf("third rule outboundTag = %v, want direct", got)
+	}
+
+	if got := firstUserID(proxyOutbound); got != "new-uuid" {
+		t.Fatalf("selected proxy user id = %q, want new-uuid", got)
+	}
+
+	expectedMediaIDs := map[string]struct{}{
+		"old-ru": {},
+		"old-kz": {},
+	}
+	if got := firstUserID(mediaOutbound); got == "new-uuid" {
+		t.Fatalf("selected media user id = %q, want skipped original id", got)
+	} else if _, ok := expectedMediaIDs[got]; !ok {
+		t.Fatalf("selected media user id = %q, want one of old-ru/old-kz", got)
+	}
+}
+
+func TestBuildRandomizeGroupsInTemplateArray(t *testing.T) {
+	template := []any{
+		map[string]any{
+			"remarks": "cfg-1",
+			"subserver": map[string]any{
+				"randomize": map[string]any{
+					"proxy": []any{"proxy_a1", "proxy_b1"},
+				},
+			},
+			"outbounds": []any{
+				map[string]any{
+					"tag":      "proxy_a1",
+					"protocol": "vless",
+					"settings": map[string]any{"vnext": []any{map[string]any{"users": []any{map[string]any{"id": "old-a1"}}}}},
+				},
+				map[string]any{
+					"tag":      "proxy_b1",
+					"protocol": "vless",
+					"settings": map[string]any{"vnext": []any{map[string]any{"users": []any{map[string]any{"id": "old-b1"}}}}},
+				},
+			},
+			"routing": map[string]any{
+				"rules": []any{map[string]any{"type": "field", "outboundTag": "proxy"}},
+			},
+		},
+		map[string]any{
+			"remarks": "cfg-2",
+			"subserver": map[string]any{
+				"randomize": map[string]any{
+					"proxy": []any{"proxy_a2", "proxy_b2"},
+				},
+			},
+			"outbounds": []any{
+				map[string]any{
+					"tag":      "proxy_a2",
+					"protocol": "vless",
+					"settings": map[string]any{"vnext": []any{map[string]any{"users": []any{map[string]any{"id": "old-a2"}}}}},
+				},
+				map[string]any{
+					"tag":      "proxy_b2",
+					"protocol": "vless",
+					"settings": map[string]any{"vnext": []any{map[string]any{"users": []any{map[string]any{"id": "old-b2"}}}}},
+				},
+			},
+			"routing": map[string]any{
+				"rules": []any{map[string]any{"type": "field", "outboundTag": "proxy"}},
+			},
+		},
+	}
+
+	library := TemplateLibrary{}.WithCore(CoreXray, TemplateSet{Default: mustParseTemplate(t, template), Squads: map[string]any{}})
+	builder := NewBuilder(library)
+
+	result, err := builder.Build(nil, panel.UserInfo{VlessUUID: "new-uuid", Username: "alice"}, CoreXray)
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+
+	configs, ok := result.Content.([]any)
+	if !ok {
+		t.Fatal("expected []any build result")
+	}
+	if len(configs) != 2 {
+		t.Fatalf("expected 2 configs, got %d", len(configs))
+	}
+
+	for idx, item := range configs {
+		cfg := item.(map[string]any)
+		rule := cfg["routing"].(map[string]any)["rules"].([]any)[0].(map[string]any)
+		selectedTag, _ := rule["outboundTag"].(string)
+		if selectedTag != "proxy" {
+			t.Fatalf("config %d outboundTag = %q, want proxy", idx, selectedTag)
+		}
+		if len(outboundTags(cfg)) != 1 {
+			t.Fatalf("config %d should keep exactly 1 outbound, got %v", idx, outboundTags(cfg))
+		}
+		if findOutboundByTag(cfg, "proxy") == nil {
+			t.Fatalf("config %d is missing renamed proxy outbound", idx)
+		}
+		if got := firstUserID(findOutboundByTag(cfg, "proxy")); got != "new-uuid" {
+			t.Fatalf("config %d selected user id = %q, want new-uuid", idx, got)
+		}
 	}
 }
 

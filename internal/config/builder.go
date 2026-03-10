@@ -2,7 +2,9 @@ package config
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"errors"
+	"math/big"
 	"strings"
 	"sync"
 
@@ -28,6 +30,7 @@ func NewBuilder(templates TemplateLibrary) *Builder {
 
 type buildDirectives struct {
 	skipOutboundTags map[string]struct{}
+	randomizeGroups  map[string][]string
 }
 
 func (b *Builder) Build(_ context.Context, user panel.UserInfo, core Core) (BuildResult, error) {
@@ -53,8 +56,11 @@ func (b *Builder) Build(_ context.Context, user panel.UserInfo, core Core) (Buil
 		return BuildResult{}, err
 	}
 
-	updateConfigItem := func(cfg map[string]any) {
+	updateConfigItem := func(cfg map[string]any) error {
 		directives := parseBuildDirectives(cfg)
+		if err := applyRandomizeGroups(cfg, directives.randomizeGroups); err != nil {
+			return err
+		}
 		delete(cfg, "subserver")
 
 		outbounds, ok := cfg["outbounds"].([]any)
@@ -96,13 +102,14 @@ func (b *Builder) Build(_ context.Context, user panel.UserInfo, core Core) (Buil
 					replaced := strings.ReplaceAll(trimmed, "{user}", user.Username)
 					replaced = strings.ReplaceAll(replaced, "{username}", user.Username)
 					cfg["remarks"] = replaced
-					return
+					return nil
 				}
 				cfg["remarks"] = trimmed
-				return
+				return nil
 			}
 		}
 		cfg["remarks"] = user.Username
+		return nil
 	}
 
 	switch value := cloned.(type) {
@@ -112,14 +119,18 @@ func (b *Builder) Build(_ context.Context, user panel.UserInfo, core Core) (Buil
 			if !ok {
 				continue
 			}
-			updateConfigItem(cfg)
+			if err := updateConfigItem(cfg); err != nil {
+				return BuildResult{}, err
+			}
 		}
 		return BuildResult{
 			Content:     value,
 			ContentType: "application/json; charset=utf-8",
 		}, nil
 	case map[string]any:
-		updateConfigItem(value)
+		if err := updateConfigItem(value); err != nil {
+			return BuildResult{}, err
+		}
 		return BuildResult{
 			Content:     value,
 			ContentType: "application/json; charset=utf-8",
@@ -137,23 +148,259 @@ func parseBuildDirectives(cfg map[string]any) buildDirectives {
 	if !ok {
 		return buildDirectives{}
 	}
-	items, ok := raw["skipOutboundTags"].([]any)
-	if !ok {
-		return buildDirectives{}
+	return buildDirectives{
+		skipOutboundTags: parseStringSet(raw["skipOutboundTags"]),
+		randomizeGroups:  parseRandomizeGroups(raw["randomize"], cfg["outbounds"]),
 	}
-	skipTags := make(map[string]struct{}, len(items))
+}
+
+func parseStringSet(raw any) map[string]struct{} {
+	items := parseStringList(raw)
+	if len(items) == 0 {
+		return nil
+	}
+	values := make(map[string]struct{}, len(items))
 	for _, item := range items {
-		tag, ok := item.(string)
+		values[item] = struct{}{}
+	}
+	return values
+}
+
+func parseStringList(raw any) []string {
+	items, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+
+	values := make([]string, 0, len(items))
+	seen := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		value, ok := item.(string)
 		if !ok {
 			continue
 		}
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		values = append(values, value)
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	return values
+}
+
+func parseRandomizeGroups(raw any, rawOutbounds any) map[string][]string {
+	groupsRaw, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	availableTags := collectOutboundTags(rawOutbounds)
+	if len(availableTags) == 0 {
+		return nil
+	}
+
+	sanitized := make(map[string][]string, len(groupsRaw))
+	tagUsage := map[string]int{}
+	for rawLogicalTag, rawCandidates := range groupsRaw {
+		logicalTag := strings.TrimSpace(rawLogicalTag)
+		if logicalTag == "" {
+			continue
+		}
+
+		candidates := parseStringList(rawCandidates)
+		if len(candidates) == 0 {
+			continue
+		}
+
+		filtered := make([]string, 0, len(candidates))
+		for _, candidate := range candidates {
+			if _, exists := availableTags[candidate]; !exists {
+				continue
+			}
+			filtered = append(filtered, candidate)
+		}
+		if len(filtered) < 2 {
+			continue
+		}
+		if _, aliasExists := availableTags[logicalTag]; aliasExists && !containsString(filtered, logicalTag) {
+			continue
+		}
+
+		sanitized[logicalTag] = filtered
+		for _, candidate := range filtered {
+			tagUsage[candidate]++
+		}
+	}
+
+	if len(sanitized) == 0 {
+		return nil
+	}
+
+	result := make(map[string][]string, len(sanitized))
+	for logicalTag, candidates := range sanitized {
+		hasOverlap := false
+		for _, candidate := range candidates {
+			if tagUsage[candidate] > 1 {
+				hasOverlap = true
+				break
+			}
+		}
+		if hasOverlap {
+			continue
+		}
+		result[logicalTag] = candidates
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+func collectOutboundTags(rawOutbounds any) map[string]struct{} {
+	outbounds, ok := rawOutbounds.([]any)
+	if !ok {
+		return nil
+	}
+
+	tags := make(map[string]struct{}, len(outbounds))
+	for _, item := range outbounds {
+		outbound, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		tag, _ := outbound["tag"].(string)
 		tag = strings.TrimSpace(tag)
 		if tag == "" {
 			continue
 		}
-		skipTags[tag] = struct{}{}
+		tags[tag] = struct{}{}
 	}
-	return buildDirectives{skipOutboundTags: skipTags}
+	if len(tags) == 0 {
+		return nil
+	}
+	return tags
+}
+
+func applyRandomizeGroups(cfg map[string]any, groups map[string][]string) error {
+	if len(groups) == 0 {
+		return nil
+	}
+
+	selected, err := selectRandomizeTargets(groups)
+	if err != nil {
+		return err
+	}
+	if len(selected) == 0 {
+		return nil
+	}
+
+	trimRandomizedOutbounds(cfg, groups, selected)
+	renameSelectedRandomizedOutbounds(cfg, selected)
+	return nil
+}
+
+func selectRandomizeTargets(groups map[string][]string) (map[string]string, error) {
+	selected := make(map[string]string, len(groups))
+	for logicalTag, candidates := range groups {
+		if len(candidates) == 0 {
+			continue
+		}
+		index, err := randomIndex(len(candidates))
+		if err != nil {
+			return nil, err
+		}
+		selected[logicalTag] = candidates[index]
+	}
+	return selected, nil
+}
+
+func randomIndex(limit int) (int, error) {
+	if limit <= 1 {
+		return 0, nil
+	}
+	value, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(limit)))
+	if err != nil {
+		return 0, err
+	}
+	return int(value.Int64()), nil
+}
+
+func renameSelectedRandomizedOutbounds(cfg map[string]any, selected map[string]string) {
+	outbounds, ok := cfg["outbounds"].([]any)
+	if !ok {
+		return
+	}
+
+	replacements := make(map[string]string, len(selected))
+	for alias, candidate := range selected {
+		candidate = strings.TrimSpace(candidate)
+		alias = strings.TrimSpace(alias)
+		if candidate == "" || alias == "" || candidate == alias {
+			continue
+		}
+		replacements[candidate] = alias
+	}
+	if len(replacements) == 0 {
+		return
+	}
+
+	for _, item := range outbounds {
+		outbound, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		tag, _ := outbound["tag"].(string)
+		tag = strings.TrimSpace(tag)
+		replacement, exists := replacements[tag]
+		if !exists {
+			continue
+		}
+		outbound["tag"] = replacement
+	}
+}
+
+func trimRandomizedOutbounds(cfg map[string]any, groups map[string][]string, selected map[string]string) {
+	outbounds, ok := cfg["outbounds"].([]any)
+	if !ok {
+		return
+	}
+
+	candidateTags := make(map[string]struct{})
+	for _, candidates := range groups {
+		for _, candidate := range candidates {
+			candidateTags[candidate] = struct{}{}
+		}
+	}
+	selectedTags := make(map[string]struct{}, len(selected))
+	for _, candidate := range selected {
+		selectedTags[candidate] = struct{}{}
+	}
+
+	filtered := make([]any, 0, len(outbounds))
+	for _, item := range outbounds {
+		outbound, ok := item.(map[string]any)
+		if !ok {
+			filtered = append(filtered, item)
+			continue
+		}
+		tag, _ := outbound["tag"].(string)
+		tag = strings.TrimSpace(tag)
+		if _, candidate := candidateTags[tag]; candidate {
+			if _, keep := selectedTags[tag]; keep {
+				filtered = append(filtered, item)
+			}
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	cfg["outbounds"] = filtered
 }
 
 func (d buildDirectives) skipOutbound(outbound map[string]any) bool {

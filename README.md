@@ -189,7 +189,11 @@ GET /admin/api/remnawave/headers?uuid=<shortUUID>
 ```json
 {
   "subserver": {
-    "skipOutboundTags": ["proxy", "static-node"]
+    "skipOutboundTags": ["proxy", "static-node"],
+    "randomize": {
+      "proxy": ["proxy_a", "proxy_b"],
+      "media": ["media_a", "media_b"]
+    }
   }
 }
 ```
@@ -208,6 +212,25 @@ tag не нужно переписывать VLESS UUID.
 UUID, а не с персональным `vlessUuid` пользователя.
 
 Важно: эта логика относится именно к Xray JSON builder.
+
+#### `randomize`
+
+`randomize` задает группы в формате:
+
+- ключ — итоговый `outbounds[].tag`, который должен остаться в финальном конфиге
+- значение — список candidate `outbounds[].tag`, между которыми нужно выбрать один
+
+На каждом запросе `Remnawave Subserver`:
+
+- случайно выбирает один реальный outbound tag для каждой группы
+- если выбран candidate с другим tag, переименовывает его в ключ группы
+- удаляет остальные candidate-outbound из финального Xray JSON
+
+Ограничения:
+
+- один реальный outbound tag не должен попадать в несколько групп
+- если tag из ключа уже существует в `outbounds`, его нужно включить в список candidate
+- логика применяется только к Xray JSON builder
 
 ### Placeholders в Xray
 
